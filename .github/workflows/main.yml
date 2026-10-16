@@ -14,15 +14,15 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Extract Project Zip if present
+      - name: Extract Project Zip or handle nested folder
         run: |
           if [ -f "GlideCursor.zip" ]; then
             echo "Unzipping GlideCursor.zip..."
             unzip -o GlideCursor.zip
-            if [ -d "GlideCursor" ] && [ ! -f "build.gradle.kts" ]; then
-              echo "Moving files from GlideCursor subfolder..."
-              cp -r GlideCursor/* .
-            fi
+          fi
+          if [ -d "GlideCursor" ] && [ ! -f "build.gradle.kts" ]; then
+            echo "Moving files from GlideCursor subfolder..."
+            cp -r GlideCursor/* .
           fi
 
       - name: Set up JDK 17
@@ -31,16 +31,24 @@ jobs:
           distribution: 'temurin'
           java-version: '17'
 
-      - name: Setup Android SDK
-        uses: android-actions/setup-android@v3
-
-      - name: Setup Gradle 8.7
+      - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v3
         with:
           gradle-version: '8.7'
 
-      - name: Build with Gradle
-        run: gradle assembleDebug --stacktrace
+      - name: Make gradlew executable
+        run: |
+          if [ -f "gradlew" ]; then
+            chmod +x gradlew
+          fi
+
+      - name: Build Debug APK
+        run: |
+          if [ -f "gradlew" ]; then
+            ./gradlew assembleDebug --stacktrace
+          else
+            gradle assembleDebug --stacktrace
+          fi
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
