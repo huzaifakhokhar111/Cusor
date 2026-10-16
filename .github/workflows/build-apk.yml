@@ -25,18 +25,19 @@ jobs:
         with:
           gradle-version: '8.7'
 
-      - name: Prepare Project and Fix Android Resources
+      - name: Prepare and Compile APK
         run: |
-          # 1. Agar subfolder mein hai tou root par move karein
+          set -e
+          echo "=== 1. Checking Directory Structure ==="
           if [ -d "GlideCursor" ] && [ ! -f "build.gradle.kts" ]; then
-            echo "Moving files from GlideCursor subfolder..."
-            cp -r GlideCursor/* .
+            echo "Project found in GlideCursor/ subfolder. Moving to root..."
+            cp -rn GlideCursor/* . || true
           fi
 
-          # 2. Android SDK licenses accept karein
+          echo "=== 2. Accepting Android SDK Licenses ==="
           yes | "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" --licenses 2>/dev/null || true
 
-          # 3. App icon auto-generate karein (AAPT2 private icon error fix)
+          echo "=== 3. Fixing Icon in AndroidManifest.xml ==="
           RES_DIR=$(find . -type d -path "*/app/src/main/res" | head -n 1)
           if [ -n "$RES_DIR" ]; then
             mkdir -p "$RES_DIR/drawable"
@@ -57,16 +58,15 @@ jobs:
             find . -name "AndroidManifest.xml" -exec sed -i 's|@android:drawable/sym_def_app_icon|@drawable/ic_launcher|g' {} +
           fi
 
-          # 4. Android SDK path configure karein
+          echo "=== 4. Setting local.properties ==="
           echo "sdk.dir=$ANDROID_HOME" > local.properties
 
-      - name: Build Debug APK
-        run: |
+          echo "=== 5. Running Gradle Build ==="
           gradle assembleDebug --no-daemon --stacktrace
 
       - name: Upload Debug APK
         uses: actions/upload-artifact@v4
         with:
           name: GlideCursor-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          path: "**/app/build/outputs/apk/debug/*.apk"
           retention-days: 14
